@@ -1,3 +1,3 @@
-# potfolio
+# Dijkstra's algorithm
 
 web page
