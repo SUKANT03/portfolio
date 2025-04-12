@@ -1,75 +1,252 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Professional Portfolio</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopping Mart Pathfinder</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+        }
+        #grid-container {
+            display: grid;
+            grid-template-columns: repeat(15, 30px);
+            grid-template-rows: repeat(15, 30px);
+            gap: 2px;
+            margin: 20px;
+            position: relative;
+        }
+        .grid-cell {
+            width: 30px;
+            height: 30px;
+            background-color: lightgray;
+            border: 1px solid #ccc;
+            position: relative;
+        }
+        .start-cell { background-color: green !important; }
+        .waypoint-cell { background-color: yellow !important; }
+        .end-cell { background-color: red !important; }
+        .obstacle-cell { background-color: darkgray !important; }
+
+        /* Path Line Styling */
+        .path-line {
+            position: absolute;
+            background-color: orange;
+            z-index: 2;
+            transition: all 0.2s ease-in-out;
+        }
+
+        button {
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body>
-  <header class="header">
-    <div class="logo">Your Name</div>
-    <nav class="nav">
-      <a href="#about">About</a>
-      <a href="#projects">Projects</a>
-      <a href="#skills">Skills</a>
-      <a href="#contact">Contact</a>
-    </nav>
-  </header>
-  
-  <main>
-    <section class="hero">
-      <h1>Welcome to My Portfolio</h1>
-      <p>I'm a [Your Profession], passionate about building impactful solutions.</p>
-      <a href="#contact" class="cta-btn">Hire Me</a>
-    </section>
 
-    <section id="about" class="section about">
-      <h2>About Me</h2>
-      <p>I am a [Your Profession] with expertise in [Your Skills or Domain]. With [X years] of experience, I specialize in delivering high-quality solutions that meet client needs and exceed expectations.</p>
-    </section>
+    <h2>Shopping Mart Pathfinder</h2>
+    <div id="grid-container"></div>
+    <button id="start-btn">Find Path</button>
 
-    <section id="projects" class="section projects">
-      <h2>Projects</h2>
-      <div class="project-grid">
-        <div class="project-card">
-          <h3>Project 1</h3>
-          <p>A description of the project with its key features.</p>
-        </div>
-        <div class="project-card">
-          <h3>Project 2</h3>
-          <p>A description of the project with its key features.</p>
-        </div>
-        <div class="project-card">
-          <h3>Project 3</h3>
-          <p>A description of the project with its key features.</p>
-        </div>
-      </div>
-    </section>
+    <script>
+        const gridSize = 15;
+        let grid = [];
 
-    <section id="skills" class="section skills">
-      <h2>Skills</h2>
-      <ul class="skills-list">
-        <li>Skill 1</li>
-        <li>Skill 2</li>
-        <li>Skill 3</li>
-        <li>Skill 4</li>
-      </ul>
-    </section>
+        let start = { x: 1, y: 1 };
+        let waypoints = [{ x: 5, y: 3 }, { x: 8, y: 7 }, { x: 12, y: 5 }];
+        let end = { x: 13, y: 13 };
 
-    <section id="contact" class="section contact">
-      <h2>Contact Me</h2>
-      <form action="#" method="POST">
-        <input type="text" name="name" placeholder="Your Name" required>
-        <input type="email" name="email" placeholder="Your Email" required>
-        <textarea name="message" placeholder="Your Message" required></textarea>
-        <button type="submit">Send Message</button>
-      </form>
-    </section>
-  </main>
+        // Example of obstacles (racks)
+        let obstacles = [
+            { x: 5, y: 4 },{ x: 8, y: 8 },{ x: 13, y: 5 },
+        ];
 
-  <footer class="footer">
-    <p>&copy; 2025 Your Name. All Rights Reserved.</p>
-  </footer>
+        function createGrid() {
+            const container = document.getElementById('grid-container');
+            container.innerHTML = '';
+            grid = [];
+
+            for (let row = 0; row < gridSize; row++) {
+                grid[row] = [];
+                for (let col = 0; col < gridSize; col++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('grid-cell');
+                    cell.id = `cell-${row}-${col}`;
+                    container.appendChild(cell);
+                    grid[row][col] = { x: row, y: col, cost: Infinity, visited: false, previous: null };
+
+                    // Mark obstacles
+                    if (obstacles.some(obstacle => obstacle.x === row && obstacle.y === col)) {
+                        cell.classList.add('obstacle-cell');
+                    }
+                }
+            }
+
+            markPresetPoints();
+        }
+
+        function markPresetPoints() {
+            document.getElementById(`cell-${start.x}-${start.y}`).classList.add('start-cell');
+            waypoints.forEach(wp => {
+                document.getElementById(`cell-${wp.x}-${wp.y}`).classList.add('waypoint-cell');
+            });
+            document.getElementById(`cell-${end.x}-${end.y}`).classList.add('end-cell');
+        }
+
+        function dijkstra(start, waypoints, end) {
+            let fullPath = [];
+            let currentStart = start;
+
+            for (let i = 0; i < waypoints.length; i++) {
+                let pathSegment = findShortestPath(currentStart, waypoints[i]);
+                if (pathSegment.length === 0) return [];
+                fullPath = [...fullPath, ...pathSegment];
+                currentStart = waypoints[i];
+            }
+
+            let lastSegment = findShortestPath(currentStart, end);
+            if (lastSegment.length === 0) return [];
+
+            return [...fullPath, ...lastSegment];
+        }
+
+        function findShortestPath(start, end) {
+            const openList = [];
+            const closedSet = new Set();
+
+            grid.forEach(row => row.forEach(cell => {
+                cell.cost = Infinity;
+                cell.visited = false;
+                cell.previous = null;
+            }));
+
+            grid[start.x][start.y].cost = 0;
+            openList.push(grid[start.x][start.y]);
+
+            while (openList.length > 0) {
+                openList.sort((a, b) => a.cost - b.cost);
+                let current = openList.shift();
+
+                if (current.x === end.x && current.y === end.y) break;
+
+                closedSet.add(`${current.x}-${current.y}`);
+                getNeighbors(current).forEach(neighbor => {
+                    if (closedSet.has(`${neighbor.x}-${neighbor.y}`) || isObstacle(neighbor)) return;
+                    const newCost = current.cost + 1;
+                    if (newCost < neighbor.cost) {
+                        neighbor.cost = newCost;
+                        neighbor.previous = current;
+                        openList.push(neighbor);
+                    }
+                });
+            }
+
+            return reconstructPath(end);
+        }
+
+        function getNeighbors(cell) {
+            const directions = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
+            return directions.map(d => ({ x: cell.x + d.x, y: cell.y + d.y }))
+                .filter(n => n.x >= 0 && n.x < gridSize && n.y >= 0 && n.y < gridSize)
+                .map(n => grid[n.x][n.y]);
+        }
+
+        function isObstacle(cell) {
+            return document.getElementById(`cell-${cell.x}-${cell.y}`).classList.contains('obstacle-cell');
+        }
+
+        function reconstructPath(end) {
+            const path = [];
+            let current = grid[end.x][end.y];
+            while (current.previous) {
+                path.unshift(current);
+                current = current.previous;
+            }
+            return path;
+        }
+
+        function visualizePath(path) {
+            clearPathLines();
+
+            let i = 0;
+            const interval = setInterval(() => {
+                if (i >= path.length - 1) {
+                    clearInterval(interval);
+                    return;
+                }
+
+                const current = path[i];
+                const next = path[i + 1];
+
+                drawLine(current, next);
+
+                i++;
+            }, 200);
+        }
+
+        function drawLine(start, end) {
+            const gridContainer = document.getElementById('grid-container');
+            const startCell = document.getElementById(`cell-${start.x}-${start.y}`);
+            const endCell = document.getElementById(`cell-${end.x}-${end.y}`);
+
+            const { offsetLeft: x1, offsetTop: y1 } = startCell;
+            const { offsetLeft: x2, offsetTop: y2 } = endCell;
+
+            if (start.x === end.x) {
+                drawHorizontalLine(x1, y1, x2);
+            } else if (start.y === end.y) {
+                drawVerticalLine(x1, y1, y2);
+            } else {
+                drawHorizontalLine(x1, y1, x2);
+                drawVerticalLine(x2, y1, y2);
+            }
+        }
+
+        function drawHorizontalLine(x1, y1, x2) {
+            const gridContainer = document.getElementById('grid-container');
+            const horizontal = document.createElement('div');
+            horizontal.classList.add('path-line');
+            gridContainer.appendChild(horizontal);
+            horizontal.style.width = `${Math.abs(x2 - x1)}px`;
+            horizontal.style.height = '4px';
+            horizontal.style.top = `${y1 + 13}px`;
+            horizontal.style.left = `${Math.min(x1, x2) + 1}px`;
+        }
+
+        function drawVerticalLine(x1, y1, y2) {
+            const gridContainer = document.getElementById('grid-container');
+            const vertical = document.createElement('div');
+            vertical.classList.add('path-line');
+            gridContainer.appendChild(vertical);
+            vertical.style.width = '4px';
+            vertical.style.height = `${Math.abs(y2 - y1)}px`;
+            vertical.style.top = `${Math.min(y1, y2) + 1}px`;
+            vertical.style.left = `${x1 + 13}px`;
+        }
+
+        function clearPathLines() {
+            document.querySelectorAll('.path-line').forEach(line => line.remove());
+        }
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            clearPathLines();
+
+            const path = dijkstra(start, waypoints, end);
+            if (path.length === 0) {
+                alert("No valid path found!");
+                return;
+            }
+
+            visualizePath(path);
+        });
+
+        createGrid();
+    </script>
+
 </body>
 </html>
